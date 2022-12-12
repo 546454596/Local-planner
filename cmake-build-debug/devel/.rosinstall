@@ -1,0 +1,2 @@
+- setup-file:
+    local-name: /home/cx/brainnavi/testRobot/src/cmake-build-debug/devel/setup.sh
