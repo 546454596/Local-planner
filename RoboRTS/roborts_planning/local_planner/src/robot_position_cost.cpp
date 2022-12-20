@@ -111,12 +111,8 @@ double RobotPositionCost::FootprintCost (const Eigen::Vector2d& position, const 
   return footprint_cost;
 }
 
-double RobotPositionCost::FootprintCost(double x,
-                                        double y,
-                                        double theta,
-                                        const std::vector<Eigen::Vector2d> &footprint_spec,
-                                        double inscribed_radius,
-                                        double circumscribed_radius) {
+double RobotPositionCost::FootprintCost(double x, double y, double theta, const std::vector<Eigen::Vector2d> &footprint_spec,
+                                        double inscribed_radius, double circumscribed_radius) {
   double cos_th = cos(theta);
   double sin_th = sin(theta);
   std::vector<Eigen::Vector2d> oriented_footprint;

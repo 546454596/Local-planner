@@ -1,19 +1,3 @@
-/****************************************************************************
- *  Copyright (C) 2019 RoboMaster.
- *
- *  This program is free software: you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation, either version 3 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of 
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program. If not, see <http://www.gnu.org/licenses/>.
- ***************************************************************************/
 #include <csignal>
 
 #include "local_planner/local_planner_node.h"
@@ -62,12 +46,13 @@ roborts_common::ErrorInfo LocalPlannerNode::Init() {
                      "local planner algorithm instance can't be loaded");
   }
   std::string name;
-  visual_frame_ = local_cost_->GetGlobalFrameID();//
+  visual_frame_ = local_cost_->GetGlobalFrameID();//机器人局部规划坐标系
+  ROS_INFO("local_cost_->GetGlobalFrameID()   visual_frame_ is: %s", visual_frame_);
   visual_ = LocalVisualizationPtr(new LocalVisualization(local_planner_nh_, visual_frame_));
   vel_pub_ = local_planner_nh_.advertise<roborts_msgs::TwistAccel>("/cmd_vel_acc", 5);
   return roborts_common::ErrorInfo(roborts_common::ErrorCode::OK);
 }
-
+//command is local_planner_goal_.route in chassis_executor.cpp
 void LocalPlannerNode::ExcuteCB(const roborts_msgs::LocalPlannerGoal::ConstPtr &command) {
   roborts_common::ErrorInfo error_info = GetErrorInfo();
   NodeState node_state = GetNodeState();
@@ -84,7 +69,7 @@ void LocalPlannerNode::ExcuteCB(const roborts_msgs::LocalPlannerGoal::ConstPtr &
     return;
   }
   if (plan_mtx_.try_lock()) {
-    local_planner_->SetPlan(command->route, local_goal_);
+    local_planner_->SetPlan(command->route, local_goal_);//局部坐标系下轨迹  目的地
     plan_mtx_.unlock();
     plan_condition_.notify_one();
   }
@@ -95,7 +80,6 @@ void LocalPlannerNode::ExcuteCB(const roborts_msgs::LocalPlannerGoal::ConstPtr &
 
   while (ros::ok()) {
     std::this_thread::sleep_for(std::chrono::microseconds(1));
-
     if (as_.isPreemptRequested()) {
       ROS_INFO("Action Preempted");
       if (as_.isNewGoalAvailable()) {
@@ -118,7 +102,6 @@ void LocalPlannerNode::ExcuteCB(const roborts_msgs::LocalPlannerGoal::ConstPtr &
         feedback.error_code = error_info.error_code();
         feedback.error_msg = error_info.error_msg();
         SetErrorInfo(roborts_common::ErrorInfo::OK());
-
         as_.publishFeedback(feedback);
       }
       if(node_state == NodeState::SUCCESS) {
@@ -134,7 +117,6 @@ void LocalPlannerNode::ExcuteCB(const roborts_msgs::LocalPlannerGoal::ConstPtr &
       }
     }
   }
-
 }
 
 void LocalPlannerNode::Loop() {
@@ -159,10 +141,7 @@ void LocalPlannerNode::Loop() {
     sleep_time = std::chrono::milliseconds(need_time) - cost_time;
 
     if (sleep_time <= std::chrono::milliseconds(0)) {
-      //LOG_WARNING << "The time planning once is " << cost_time.count() << " beyond the expected time "
-        //        << std::chrono::milliseconds(50).count();
       sleep_time = std::chrono::milliseconds(0);
-      //SetErrorInfo(ErrorInfo(ErrorCode::GP_TIME_OUT_ERROR, "Planning once time out."));
     }
     if (error_info.IsOK()) {
       error_count = 0;
@@ -186,10 +165,7 @@ void LocalPlannerNode::Loop() {
   cmd_vel_.accel.linear.x = 0;
   cmd_vel_.accel.linear.y = 0;
   cmd_vel_.accel.angular.z = 0;
-//  for (int i = 0; i < 10; ++i) {
   vel_pub_.publish(cmd_vel_);
-//    usleep(5000);
-//  }
 }
 
 void LocalPlannerNode::SetErrorInfo(const roborts_common::ErrorInfo error_info) {

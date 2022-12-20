@@ -1,65 +1,8 @@
-/****************************************************************************
- *  Copyright (C) 2019 RoboMaster.
- *
- *  This program is free software: you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation, either version 3 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of 
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program. If not, see <http://www.gnu.org/licenses/>.
- ***************************************************************************/
-
-/*********************************************************************
- *
- * Software License Agreement (BSD License)
- *
- *  Copyright (c) 2016,
- *  TU Dortmund - Institute of Control Theory and Systems Engineering.
- *  All rights reserved.
- *
- *  Redistribution and use in source and binary forms, with or without
- *  modification, are permitted provided that the following conditions
- *  are met:
- *
- *   * Redistributions of source code must retain the above copyright
- *     notice, this list of conditions and the following disclaimer.
- *   * Redistributions in binary form must reproduce the above
- *     copyright notice, this list of conditions and the following
- *     disclaimer in the documentation and/or other materials provided
- *     with the distribution.
- *   * Neither the name of the institute nor the names of its
- *     contributors may be used to endorse or promote products derived
- *     from this software without specific prior written permission.
- *
- *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
- *  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
- *  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
- *  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
- *  BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- *  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
- *  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- *  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
- *  ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- *  POSSIBILITY OF SUCH DAMAGE.
- *
- * Author: Christoph Rösmann
- *********************************************************************/
-
 #include "timed_elastic_band/teb_vertex_console.h"
-
 
 namespace roborts_local_planner {
 
-TebVertexConsole::TebVertexConsole() {
-}
+TebVertexConsole::TebVertexConsole() { }
 
 TebVertexConsole::~TebVertexConsole() {
   ClearAllVertex();
@@ -89,9 +32,7 @@ void TebVertexConsole::AddPoseAndTimeDiff(const DataBase &pose, double dt){
     AddPose(pose, false);
     AddTimeDiff(dt, false);
   } else {
-
   }
-
   return;
 }
 
@@ -100,7 +41,6 @@ void TebVertexConsole::AddPoseAndTimeDiff(const Eigen::Ref<const Eigen::Vector2d
     AddPose(position, theta, false);
     AddTimeDiff(dt, false);
   } else {
-
   }
   return;
 }
@@ -249,15 +189,9 @@ bool TebVertexConsole::InitTEBtoGoal(const DataBase &start,
                                                           orient_init);
         AddPoseAndTimeDiff(temp_data.first, temp_data.second, timestep);
       }
-
     }
-
-
     if (SizePoses() < min_samples - 1) {
-
       while (SizePoses() < min_samples - 1) {
-
-
         DataBase temp_pose;
         temp_pose.AverageInPlace(BackPose(), goal);
         if (max_vel_x > 0) {
@@ -266,42 +200,32 @@ bool TebVertexConsole::InitTEBtoGoal(const DataBase &start,
         AddPoseAndTimeDiff(temp_pose, timestep);
       }
     }
-
     if (max_vel_x > 0) {
       timestep = (goal.GetPosition() - BackPose().GetPosition()).norm() / max_vel_x;
     }
     AddPoseAndTimeDiff(goal, timestep);
     SetPoseVertexFixed(SizePoses() - 1, true);
   } else  {
-
     return false;
   }
   return true;
 }
-
-bool TebVertexConsole::InitTEBtoGoal(std::vector<DataBase> &plan,
-                                     double dt,
-                                     bool estimate_orient,
-                                     int min_samples,
-                                     bool guess_backwards_motion,
-                                     bool micro_control) {
-
+//estimate_orient为true  min_samples=3     plan是transformed_plan_，是全局坐标系下 局部规划轨迹
+bool TebVertexConsole::InitTEBtoGoal(std::vector<DataBase> &plan, double dt, bool estimate_orient, int min_samples,
+                                     bool guess_backwards_motion, bool micro_control) {
   if (!IsInit()) {
-    DataBase start = plan.front();
-    DataBase goal = plan.back();
-
+    DataBase start = plan.front();//全局坐标系下 局部规划起点
+    DataBase goal = plan.back();//全局坐标系下 局部规划目的地
     AddPose(start);
-    SetPoseVertexFixed(0, true);
-
-    bool backwards = false;
+    SetPoseVertexFixed(0, true);//index为0的节点设置为fixed
+    bool backwards = false;//起点和局部目的地之间夹角为钝角时，则可以后退行驶。
     /*if (guess_backwards_motion
         && (goal.GetPosition() - start.GetPosition()).dot(start.OrientationUnitVec()) < 0) {
       backwards = true;
     }*/
-
     for (int i = 1; i < (int) plan.size() - 1; ++i) {
       double yaw;
-      if (estimate_orient && !micro_control) {
+      if (estimate_orient && !micro_control) {//此处都为true
         double dx = plan[i + 1].GetPosition().coeffRef(0) - plan[i].GetPosition().coeffRef(0);
         double dy = plan[i + 1].GetPosition().coeffRef(1) - plan[i].GetPosition().coeffRef(1);
         /*if (backwards) {
@@ -310,11 +234,9 @@ bool TebVertexConsole::InitTEBtoGoal(std::vector<DataBase> &plan,
         } else*/ {
           plan[i].SetTheta(std::atan2(dy, dx));
         }
-
       }
-      AddPoseAndTimeDiff(plan[i], dt);
+      AddPoseAndTimeDiff(plan[i], dt);//dt=0.5  此处添加的位姿和dt都不是固定的
     }
-
     if (SizePoses() < min_samples - 1) {
       while (SizePoses() < min_samples - 1) {
         DataBase temp_pose;
@@ -322,14 +244,11 @@ bool TebVertexConsole::InitTEBtoGoal(std::vector<DataBase> &plan,
         AddPoseAndTimeDiff(temp_pose, dt);
       }
     }
-
-
     AddPoseAndTimeDiff(goal, dt);
     SetPoseVertexFixed(SizePoses() - 1, true);
   } else {
     return false;
   }
-
   return true;
 }
 
@@ -481,10 +400,8 @@ bool TebVertexConsole::DetectDetoursBackwards(double threshold) const {
   return false;
 }
 
-void TebVertexConsole::UpdateAndPruneTEB(boost::optional<const DataBase &> new_start,
-                                         boost::optional<const DataBase &> new_goal,
+void TebVertexConsole::UpdateAndPruneTEB(boost::optional<const DataBase &> new_start, boost::optional<const DataBase &> new_goal,
                                          int min_samples){
-
   if (new_start && SizePoses() > 0) {
     double dist_cache = (new_start->GetPosition() - Pose(0).GetPosition()).norm();
     double dist;

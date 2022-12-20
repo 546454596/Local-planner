@@ -47,23 +47,23 @@ void VelConverter::UpdateVel() {
   if (!begin_) {
     return;
   }
-  auto begin = std::chrono::high_resolution_clock::now();
-  if (new_cmd_acc_) {
-    std::lock_guard<std::mutex> cmd_guard(cmd_mutex_);
+//  auto begin = std::chrono::high_resolution_clock::now();
+//  if (new_cmd_acc_) {
+//    std::lock_guard<std::mutex> cmd_guard(cmd_mutex_);
     cmd_vel_ = cmd_vel_acc_.twist;
     cmd_pub_.publish(cmd_vel_);
-    new_cmd_acc_ = false;
-    time_begin_ = std::chrono::high_resolution_clock::now();
-    return;
-  }
-  auto actual_time = std::chrono::duration<double, std::ratio<1, 1>>(std::chrono::high_resolution_clock::now() - time_begin_).count();
-  time_begin_ = std::chrono::high_resolution_clock::now();
+//    new_cmd_acc_ = false;
+//    time_begin_ = std::chrono::high_resolution_clock::now();
+//    return;
+//  }
+//  auto actual_time = std::chrono::duration<double, std::ratio<1, 1>>(std::chrono::high_resolution_clock::now() - time_begin_).count();
+//  time_begin_ = std::chrono::high_resolution_clock::now();
+//
+//  cmd_vel_.linear.x = cmd_vel_.linear.x + actual_time * cmd_vel_acc_.accel.linear.x;
+//  cmd_vel_.linear.y = cmd_vel_.linear.y + actual_time * cmd_vel_acc_.accel.linear.y;
+//  cmd_vel_.angular.z = cmd_vel_.angular.z + actual_time * cmd_vel_acc_.accel.angular.z;
 
-  cmd_vel_.linear.x = cmd_vel_.linear.x + actual_time * cmd_vel_acc_.accel.linear.x;
-  cmd_vel_.linear.y = cmd_vel_.linear.y + actual_time * cmd_vel_acc_.accel.linear.y;
-  cmd_vel_.angular.z = cmd_vel_.angular.z + actual_time * cmd_vel_acc_.accel.angular.z;
-
-  cmd_pub_.publish(cmd_vel_);
+//  cmd_pub_.publish(cmd_vel_);
 
 }
 

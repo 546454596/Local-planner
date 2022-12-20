@@ -44,7 +44,7 @@ void LocalVisualization::PublishLocalPlan(const TebVertexConsole& vertex_console
 
   for (int i = 0; i <vertex_console.SizePoses(); ++i) {
     geometry_msgs::PoseStamped pose_stamped;
-    pose_stamped.header.frame_id = local_plan.header.frame_id;
+    pose_stamped.header.frame_id = local_plan.header.frame_id;//局部规划坐标系
     pose_stamped.header.stamp = local_plan.header.stamp;
     pose_stamped.pose.position.x = vertex_console.Pose(i).GetPosition().coeffRef(0);
     pose_stamped.pose.position.y = vertex_console.Pose(i).GetPosition().coeffRef(1);

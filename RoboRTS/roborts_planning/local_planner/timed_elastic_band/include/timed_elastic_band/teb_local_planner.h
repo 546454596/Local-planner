@@ -141,7 +141,7 @@ class TebLocalPlanner : public LocalPlannerBase {
   //! Robot odom info
   OdomInfo odom_info_;
   //! Global planner's solve
-  nav_msgs::Path global_plan_, temp_plan_;
+  nav_msgs::Path global_plan_, temp_plan_;//global_plan_、temp_plan都为局部规划坐标系下路径
   //! Last velocity
   roborts_msgs::TwistAccel last_cmd_;
   //! Robot current velocity

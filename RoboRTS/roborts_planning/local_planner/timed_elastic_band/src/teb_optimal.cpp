@@ -5,46 +5,33 @@ namespace roborts_local_planner {
             ,robot_model_(new PointRobotFootprint()), initialized_(false), optimized_(false) {
 
     }
-
-    TebOptimal::TebOptimal(const Config& config_param,
-                           ObstContainer *obstacles,
-                           RobotFootprintModelPtr robot_model,
-                           LocalVisualizationPtr visual,
-                           const ViaPointContainer *via_points) {
-        initialize(config_param, obstacles, robot_model, visual,via_points);
+//LocalVisualizationPtr visual 发布局部规划轨迹的topic
+    TebOptimal::TebOptimal(const Config& config_param, ObstContainer *obstacles, RobotFootprintModelPtr robot_model,
+                           LocalVisualizationPtr visual, const ViaPointContainer *via_points) {
+        initialize(config_param, obstacles, robot_model, visual, via_points);
     }
 
-    void TebOptimal::initialize(const Config& config_param,
-                                ObstContainer *obstacles,
-                                RobotFootprintModelPtr robot_model,
-                                LocalVisualizationPtr visual,
-                                const ViaPointContainer *via_points) {
-
+    void TebOptimal::initialize(const Config& config_param, ObstContainer *obstacles, RobotFootprintModelPtr robot_model,
+                                LocalVisualizationPtr visual, const ViaPointContainer *via_points) {
         optimizer_ = InitOptimizer();
-
         obstacles_     = obstacles;
         robot_model_   = robot_model;
-        visualization_ = visual;
+        visualization_ = visual;//visualization_ 发布局部规划轨迹的topic
         via_points_    = via_points;
         cost_          = HUGE_VAL;
-
         vel_start_.first            = true;
         vel_start_.second.linear.x  = 0;
         vel_start_.second.linear.y  = 0;
         vel_start_.second.angular.z = 0;
-
         vel_end_.first            = true;
         vel_end_.second.linear.x  = 0;
         vel_end_.second.linear.y  = 0;
         vel_end_.second.angular.z = 0;
-
         param_config_      = config_param;
         robot_info_        = config_param.kinematics_opt();
         obstacles_info_    = config_param.obstacles_opt();
         trajectory_info_   = config_param.trajectory_opt();
         optimization_info_ = config_param.optimize_info();
-
-
         initialized_ = true;
     }
 
@@ -90,23 +77,15 @@ namespace roborts_local_planner {
         return optimizer;
     }
 
-    bool TebOptimal::OptimizeTeb(int iterations_innerloop,
-                                 int iterations_outerloop,
-                                 bool compute_cost_afterwards,
-                                 double obst_cost_scale,
-                                 double viapoint_cost_scale,
-                                 bool alternative_time_cost) {
-        if (optimization_info_.optimization_activate() == false){
+    bool TebOptimal::OptimizeTeb(int iterations_innerloop, int iterations_outerloop, bool compute_cost_afterwards,
+                                 double obst_cost_scale, double viapoint_cost_scale, bool alternative_time_cost) {
+        if (optimization_info_.optimization_activate() == false)
             return false;
-        }
-
         bool success = false;
         optimized_ = false;
-
         double weight_multiplier = 1.0;
-
         for (int i=0; i<iterations_outerloop; ++i) {
-            if (trajectory_info_.teb_autosize()) {
+            if (trajectory_info_.teb_autosize()) {//dt_ref初试时间常数=0.15
                 vertex_console_.AutoResize(trajectory_info_.dt_ref(), trajectory_info_.dt_hysteresis(),
                                            trajectory_info_.min_samples(), trajectory_info_.max_samples());
             }
@@ -121,17 +100,12 @@ namespace roborts_local_planner {
                 return false;
             }
             optimized_ = true;
-
             if (compute_cost_afterwards && i==iterations_outerloop-1) {
                 ComputeCurrentCost(obst_cost_scale, viapoint_cost_scale, alternative_time_cost);
             }
-
-
             ClearGraph();
-
             weight_multiplier *= optimization_info_.weight_adapt_factor();
         }
-
         return true;
     }
 
@@ -140,14 +114,10 @@ namespace roborts_local_planner {
     }
 
     void TebOptimal::Visualize() {
-        if (!visualization_) {
+        if (!visualization_)
             return;
-        }
-
-        if (vertex_console_.SizePoses() > 0) {
-            visualization_->PublishLocalPlan(vertex_console_);
-        }
-
+        if (vertex_console_.SizePoses() > 0)
+            visualization_->PublishLocalPlan(vertex_console_);//发布局部规划的轨迹topic,frame=odom
     }
 
     void TebOptimal::SetVelocityStart(const geometry_msgs::Twist &vel_start) {
@@ -161,57 +131,39 @@ namespace roborts_local_planner {
         vel_end_.first = true;
         vel_end_.second = vel_end;
     }
-
-    bool TebOptimal::Optimal(std::vector<DataBase> &initial_plan,
-                             const geometry_msgs::Twist *start_vel,
-                             bool free_goal_vel, bool micro_control) {
-        if (!initialized_) {
+//initial_plan是transformed_plan_，transformed_plan_是全局坐标系下？？？可能是odom 局部规划轨迹  start_vel机器人当前速度
+    bool TebOptimal::Optimal(std::vector<DataBase> &initial_plan, const geometry_msgs::Twist *start_vel, bool free_goal_vel, bool micro_control) {
+        if (!initialized_)
             ROS_ERROR("optimal not be initialized");
-        }
-
-        if (!vertex_console_.IsInit()) {
-            vertex_console_.InitTEBtoGoal(initial_plan, trajectory_info_.dt_ref(),
-                                          trajectory_info_.global_plan_overwrite_orientation(),
-                                          trajectory_info_.min_samples(),
-                                          trajectory_info_.allow_init_with_backwards_motion(),
+        if (!vertex_console_.IsInit()) {//图节点，位姿、dt     dt_ref初始时间常数,为0.5  allow_init_with_backwards_motion为false   min_sample为3
+            vertex_console_.InitTEBtoGoal(initial_plan, trajectory_info_.dt_ref(), trajectory_info_.global_plan_overwrite_orientation(),
+                                          trajectory_info_.min_samples(),trajectory_info_.allow_init_with_backwards_motion(),
                                           micro_control);
-
         } else {
             DataBase start = initial_plan.front();
             DataBase goal = initial_plan.back();
-
-            if ( (vertex_console_.SizePoses() > 0)
-                 && (goal.GetPosition() - vertex_console_.BackPose().GetPosition()).norm()
-                    < trajectory_info_.force_reinit_new_goal_dist()) {
+            if ( (vertex_console_.SizePoses() > 0) && (goal.GetPosition() - vertex_console_.BackPose().GetPosition()).norm()
+                    < trajectory_info_.force_reinit_new_goal_dist()) {  // force_reinit_new_goal_dist=0.8 充新规划局部路径
                 vertex_console_.UpdateAndPruneTEB(start, goal, trajectory_info_.min_samples());
-
             } else  {
                 vertex_console_.ClearAllVertex();
-                vertex_console_.InitTEBtoGoal(initial_plan, trajectory_info_.dt_ref(),
-                                              trajectory_info_.global_plan_overwrite_orientation(),
-                                              trajectory_info_.min_samples(),
-                                              trajectory_info_.allow_init_with_backwards_motion(),
+                vertex_console_.InitTEBtoGoal(initial_plan, trajectory_info_.dt_ref(), trajectory_info_.global_plan_overwrite_orientation(),
+                                              trajectory_info_.min_samples(), trajectory_info_.allow_init_with_backwards_motion(),
                                               micro_control);
             }
         }
         if (start_vel) {
             SetVelocityStart(*start_vel);
         }
-
         if (free_goal_vel) {
             SetVelocityGoalFree();
         } else {
             vel_end_.first = true;
         }
-
-        return OptimizeTeb(optimization_info_.no_inner_iterations(),
-                           optimization_info_.no_outer_iterations());
+        return OptimizeTeb(optimization_info_.no_inner_iterations(),optimization_info_.no_outer_iterations());//5和4次
     }
 
-    bool TebOptimal::Optimal(const DataBase &start,
-                             const DataBase &goal,
-                             const geometry_msgs::Twist *start_vel,
-                             bool free_goal_vel, bool micro_control) {
+    bool TebOptimal::Optimal(const DataBase &start, const DataBase &goal, const geometry_msgs::Twist *start_vel, bool free_goal_vel, bool micro_control) {
         if (!initialized_) {
             ROS_ERROR("optimal not be initialized");
         }
@@ -232,13 +184,11 @@ namespace roborts_local_planner {
         if (start_vel){
             SetVelocityStart(*start_vel);
         }
-
         if (free_goal_vel){
             SetVelocityGoalFree();
         } else {
             vel_end_.first = true;
         }
-
         return OptimizeTeb(optimization_info_.no_inner_iterations(),
                            optimization_info_.no_outer_iterations());
     }
@@ -248,24 +198,17 @@ namespace roborts_local_planner {
             ROS_WARN("Cannot build graph, because it is not empty. Call graphClear()!");
             return false;
         }
-
         AddTebVertices();
         if (obstacles_info_.legacy_obstacle_association()) {
             AddObstacleLegacyEdges(weight_multiplier);
         } else {
             AddObstacleEdges(weight_multiplier);
         }
-
         //AddEdgesDynamicObstacles();
-
-        //AddViaPointsEdges();
-
+        AddViaPointsEdges();
         AddVelocityEdges();
-
         AddAccelerationEdges();
-
         AddTimeOptimalEdges();
-
         if (robot_info_.min_turning_radius() == 0 ||
             optimization_info_.weight_kinematics_turning_radius() == 0) {
             AddKinematicsDiffDriveEdges();
@@ -835,11 +778,9 @@ namespace roborts_local_planner {
 
     bool TebOptimal::IsTrajectoryFeasible(roborts_common::ErrorInfo &error_info, RobotPositionCost* position_cost, const std::vector<Eigen::Vector2d>& footprint_spec,
                                           double inscribed_radius, double circumscribed_radius, int look_ahead_idx) {
-
         if (look_ahead_idx < 0 || look_ahead_idx >= vertex_console_.SizePoses()) {
             look_ahead_idx = vertex_console_.SizePoses() - 1;
         }
-
         for (int i=0; i <= look_ahead_idx; ++i) {
             auto position = vertex_console_.Pose(i).GetPosition();
             if ( position_cost->FootprintCost(position.coeffRef(0), position.coeffRef(1),
@@ -916,10 +857,9 @@ namespace roborts_local_planner {
 
         return false;
     }
-
+//通过optimal完成局部优化轨迹节点构建、optimalTEB完成超图构建
     bool TebOptimal::GetVelocity(roborts_common::ErrorInfo &error_info, double &vx, double &vy, double &omega,
                                  double &acc_x, double &acc_y, double &acc_omega) const {
-
         if (vertex_console_.SizePoses()<2) {
             ROS_ERROR("pose is too less to compute the velocity");
             vx = 0;
@@ -927,7 +867,6 @@ namespace roborts_local_planner {
             omega = 0;
             return false;
         }
-
         double dt = vertex_console_.TimeDiff(0);
         if (dt<=0) {
             ROS_ERROR("the time between two pose is nagetive");
@@ -936,29 +875,22 @@ namespace roborts_local_planner {
             omega = 0;
             return false;
         }
-
         ExtractVelocity(vertex_console_.Pose(0), vertex_console_.Pose(1), dt, vx, vy, omega);
-
         double dt_2 = vertex_console_.TimeDiff(1);
         double vx_2, vy_2, omega_2;
-
         ExtractVelocity(vertex_console_.Pose(1), vertex_console_.Pose(2), dt_2, vx_2, vy_2, omega_2);
         acc_x = (vx_2 - vx) / dt;
-        //acc_y = (vy_2 - vy) / dt;
-        acc_y = 0;
+        acc_y = (vy_2 - vy) / dt;
+//        acc_y = 0;
         acc_omega = (omega_2 - omega) / dt;
         return true;
     }
 
-    void TebOptimal::ExtractVelocity(const DataBase &pose1, const DataBase &pose2, double dt,
-                                     double &vx, double &vy, double &omega) const {
+    void TebOptimal::ExtractVelocity(const DataBase &pose1, const DataBase &pose2, double dt, double &vx, double &vy, double &omega) const {
         if (dt == 0) {
-            vx = 0;
-            vy = 0;
-            omega = 0;
+            vx = vy = omega = 0;
             return;
         }
-
         Eigen::Vector2d deltaS = pose2.GetPosition() - pose1.GetPosition();
 //        if (robot_info_.max_vel_y() == 0) {
             Eigen::Vector2d conf1dir( cos(pose1.GetTheta()), sin(pose1.GetTheta()) );
@@ -975,20 +907,7 @@ namespace roborts_local_planner {
 
         }*/
         double orientdiff = g2o::normalize_theta(pose2.GetTheta() - pose1.GetTheta());
-//        if(orientdiff>3.14/2 && pose2.GetPosition().y()>pose1.GetPosition().y()){
-//            omega = -3.1415/4;
-//            vx = 0;
-//        }
-//        else if(abs(orientdiff)<=-0.1 && pose2.GetPosition().y()>=pose1.GetPosition().y()) {
-//            omega = -3.1415/8;
-//            vx = 0;
-//        }
-//        else if(abs(orientdiff)<=-0.1 && pose2.GetPosition().y()<pose1.GetPosition().y()) {
-//            omega = 3.1415 / 8;
-//            vx = 0;
-//        }else
-            omega = orientdiff/dt;
-
+        omega = orientdiff/dt;
 //        if(omega>robot_info_.max_vel_theta())
 //            omega = robot_info_.max_vel_theta();
 //        if(dt < orientdiff/omega)

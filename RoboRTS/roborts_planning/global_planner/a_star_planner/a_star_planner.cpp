@@ -1,20 +1,3 @@
-/****************************************************************************
- *  Copyright (C) 2019 RoboMaster.
- *
- *  This program is free software: you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation, either version 3 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of 
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program. If not, see <http://www.gnu.org/licenses/>.
- ***************************************************************************/
-
 #include "a_star_planner.h"
 
 namespace roborts_global_planner{
@@ -46,39 +29,26 @@ namespace roborts_global_planner{
         cost_ = nullptr;
     }
 
-    ErrorInfo AStarPlanner::Plan(const geometry_msgs::PoseStamped &start,
-                                 const geometry_msgs::PoseStamped &goal,
-                                 std::vector<geometry_msgs::PoseStamped> &path) {
-
+    ErrorInfo AStarPlanner::Plan(const geometry_msgs::PoseStamped &start, const geometry_msgs::PoseStamped &goal, std::vector<geometry_msgs::PoseStamped> &path) {
         unsigned int start_x, start_y, goal_x, goal_y, tmp_goal_x, tmp_goal_y;
         unsigned int valid_goal[2];
         unsigned  int shortest_dist = std::numeric_limits<unsigned int>::max();
         bool goal_valid = false;
-
-        if (!costmap_ptr_->GetCostMap()->World2Map(start.pose.position.x,
-                                                   start.pose.position.y,
-                                                   start_x,
-                                                   start_y)) {
+        if (!costmap_ptr_->GetCostMap()->World2Map(start.pose.position.x, start.pose.position.y, start_x, start_y)) {
             ROS_WARN("Failed to transform start pose from map frame to costmap frame");
-            return ErrorInfo(ErrorCode::GP_POSE_TRANSFORM_ERROR,
-                             "Start pose can't be transformed to costmap frame.");
+            return ErrorInfo(ErrorCode::GP_POSE_TRANSFORM_ERROR, "Start pose can't be transformed to costmap frame.");
         }
-        if (!costmap_ptr_->GetCostMap()->World2Map(goal.pose.position.x,
-                                                   goal.pose.position.y,
-                                                   goal_x,
-                                                   goal_y)) {
+        if (!costmap_ptr_->GetCostMap()->World2Map(goal.pose.position.x, goal.pose.position.y, goal_x, goal_y)) {
             ROS_WARN("Failed to transform goal pose from map frame to costmap frame");
-            return ErrorInfo(ErrorCode::GP_POSE_TRANSFORM_ERROR,
-                             "Goal pose can't be transformed to costmap frame.");
+            return ErrorInfo(ErrorCode::GP_POSE_TRANSFORM_ERROR, "Goal pose can't be transformed to costmap frame.");
         }
-        if (costmap_ptr_->GetCostMap()->GetCost(goal_x,goal_y)<inaccessible_cost_){
+        if (costmap_ptr_->GetCostMap()->GetCost(goal_x,goal_y) < inaccessible_cost_){
             valid_goal[0] = goal_x;
             valid_goal[1] = goal_y;
             goal_valid = true;
         }else{
             tmp_goal_x = goal_x;
             tmp_goal_y = goal_y - goal_search_tolerance_;
-
             while(tmp_goal_y <= goal_y + goal_search_tolerance_){
                 tmp_goal_x = goal_x - goal_search_tolerance_;
                 while(tmp_goal_x <= goal_x + goal_search_tolerance_){
@@ -104,9 +74,7 @@ namespace roborts_global_planner{
             unsigned int start_index, goal_index;
             start_index = costmap_ptr_->GetCostMap()->GetIndex(start_x, start_y);
             goal_index = costmap_ptr_->GetCostMap()->GetIndex(valid_goal[0], valid_goal[1]);
-
             costmap_ptr_->GetCostMap()->SetCost(start_x, start_y,roborts_costmap::FREE_SPACE);
-
             if(start_index == goal_index){
                 error_info=ErrorInfo::OK();
                 path.clear();
@@ -127,10 +95,7 @@ namespace roborts_global_planner{
         return error_info;
     }
 
-    ErrorInfo AStarPlanner::SearchPath(const int &start_index,
-                                       const int &goal_index,
-                                       std::vector<geometry_msgs::PoseStamped> &path) {
-
+    ErrorInfo AStarPlanner::SearchPath(const int &start_index, const int &goal_index, std::vector<geometry_msgs::PoseStamped> &path) {
         g_score_.clear();
         f_score_.clear();
         parent_.clear();
@@ -143,45 +108,33 @@ namespace roborts_global_planner{
         f_score_.resize(gridmap_height_ * gridmap_width_, std::numeric_limits<int>::max());
         parent_.resize(gridmap_height_ * gridmap_width_, std::numeric_limits<int>::max());
         state_.resize(gridmap_height_ * gridmap_width_, SearchState::NOT_HANDLED);
-
         std::priority_queue<int, std::vector<int>, Compare> openlist;
         g_score_.at(start_index) = 0;
         openlist.push(start_index);
-
         std::vector<int> neighbors_index;
         int current_index, move_cost, h_score, count = 0;
-
         while (!openlist.empty()) {
             current_index = openlist.top();
             openlist.pop();
             state_.at(current_index) = SearchState::CLOSED;
-
             if (current_index == goal_index) {
                 ROS_INFO("Search takes %d cycle counts", count);
                 break;
             }
-
             GetNineNeighbors(current_index, neighbors_index);
-
             for (auto neighbor_index : neighbors_index) {
-
                 if (neighbor_index < 0 ||
                     neighbor_index >= gridmap_height_ * gridmap_width_) {
                     continue;
                 }
-
                 if (cost_[neighbor_index] >= inaccessible_cost_ ||
                     state_.at(neighbor_index) == SearchState::CLOSED) {
                     continue;
                 }
-
                 GetMoveCost(current_index, neighbor_index, move_cost);
-
                 if (g_score_.at(neighbor_index) > g_score_.at(current_index) + move_cost + cost_[neighbor_index]) {
-
                     g_score_.at(neighbor_index) = g_score_.at(current_index) + move_cost + cost_[neighbor_index];
                     parent_.at(neighbor_index) = current_index;
-
                     if (state_.at(neighbor_index) == SearchState::NOT_HANDLED) {
                         GetManhattanDistance(neighbor_index, goal_index, h_score);
                         f_score_.at(neighbor_index) = g_score_.at(neighbor_index) + h_score;
@@ -192,14 +145,11 @@ namespace roborts_global_planner{
             }
             count++;
         }
-
         if (current_index != goal_index) {
             ROS_WARN("Global planner can't search the valid path!");
             return ErrorInfo(ErrorCode::GP_PATH_SEARCH_ERROR, "Valid global path not found.");
         }
-
         unsigned int iter_index = current_index, iter_x, iter_y;
-
         geometry_msgs::PoseStamped iter_pos;
         iter_pos.pose.orientation.w = 1;
         iter_pos.header.frame_id = "map";
@@ -207,7 +157,6 @@ namespace roborts_global_planner{
         costmap_ptr_->GetCostMap()->Index2Cells(iter_index, iter_x, iter_y);
         costmap_ptr_->GetCostMap()->Map2World(iter_x, iter_y, iter_pos.pose.position.x, iter_pos.pose.position.y);
         path.push_back(iter_pos);
-
         while (iter_index != start_index) {
             iter_index = parent_.at(iter_index);
 //    if(cost_[iter_index]>= inaccessible_cost_){
@@ -217,16 +166,11 @@ namespace roborts_global_planner{
             costmap_ptr_->GetCostMap()->Map2World(iter_x, iter_y, iter_pos.pose.position.x, iter_pos.pose.position.y);
             path.push_back(iter_pos);
         }
-
         std::reverse(path.begin(),path.end());
-
         return ErrorInfo(ErrorCode::OK);
-
     }
 
-    ErrorInfo AStarPlanner::GetMoveCost(const int &current_index,
-                                        const int &neighbor_index,
-                                        int &move_cost) const {
+    ErrorInfo AStarPlanner::GetMoveCost(const int &current_index, const int &neighbor_index, int &move_cost) const {
         if (abs(neighbor_index - current_index) == 1 ||
             abs(neighbor_index - current_index) == gridmap_width_) {
             move_cost = 10;
@@ -243,6 +187,8 @@ namespace roborts_global_planner{
     void AStarPlanner::GetManhattanDistance(const int &index1, const int &index2, int &manhattan_distance) const {
         manhattan_distance = heuristic_factor_* 10 * (abs(static_cast<int>(index1 / gridmap_width_ - index2 / gridmap_width_)) +
                                                       abs(static_cast<int>((index1 % gridmap_width_ - index2 % gridmap_width_))));
+//        manhattan_distance = heuristic_factor_ * 10 * std::sqrt(pow(index1 / gridmap_width_ - index2/gridmap_width_, 2) +
+//                                                                         pow(index1/gridmap_height_ - index2/gridmap_height_, 2));
     }
 
     void AStarPlanner::GetNineNeighbors(const int &current_index, std::vector<int> &neighbors_index) const {
@@ -276,5 +222,4 @@ namespace roborts_global_planner{
             neighbors_index.push_back(current_index - gridmap_width_ + 1); //right_up
         }
     }
-
 } //namespace roborts_global_planner

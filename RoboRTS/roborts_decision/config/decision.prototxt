@@ -3,20 +3,20 @@ master: true
 
 wing_bot {
   start_position {
-    x: 1.25 # 7.23
-    y: 1.17 # 4.32
+    x: 0 # 7.23
+    y: 0 # 4.32
     z: 0
 
     roll:  0
     pitch: 0
-    yaw:   1.57 # -1.57
+    yaw:   0 # -1.57
   }
 }
 
 master_bot {
   start_position {
-    x: 0.56 # 7.68
-    y: 0.56 # 4.77
+    x: 0 # 7.68
+    y: 0 # 4.77
     z: 0
 
     roll:  0
@@ -27,8 +27,8 @@ master_bot {
 
 # icra2019 map
 point {
-  x: 6.14
-  y: 4.45
+  x: 0
+  y: 0
   z: 0
 
   roll:  0
